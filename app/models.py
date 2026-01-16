@@ -1,0 +1,274 @@
+from app import db
+from werkzeug.security import generate_password_hash, check_password_hash
+from datetime import datetime
+from flask_login import UserMixin
+
+# -------------------------------------------------------------
+# USUÁRIO (login do sistema)
+# - UVIS também é um Usuario (tipo_usuario="uvis")
+# - Piloto também é um Usuario (tipo_usuario="piloto") e aponta para Pilotos via piloto_id
+# -------------------------------------------------------------
+class Usuario(UserMixin, db.Model):
+    __tablename__ = 'usuarios'
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    nome_uvis = db.Column(db.String(100), nullable=False, index=True)
+    regiao = db.Column(db.String(50), index=True)
+    codigo_setor = db.Column(db.String(10))
+
+    login = db.Column(db.String(50), unique=True, nullable=False, index=True)
+    senha_hash = db.Column(db.String(200), nullable=False)
+
+    # tipos esperados: "admin", "uvis", "operario", "visualizador", "piloto"
+    tipo_usuario = db.Column(db.String(20), default='uvis', index=True)
+
+    # ✅ vínculo opcional com Pilotos (somente quando tipo_usuario="piloto")
+    piloto_id = db.Column(
+        db.Integer,
+        db.ForeignKey("pilotos.id"),
+        nullable=True,
+        index=True
+    )
+    piloto = db.relationship("Pilotos", lazy="joined")
+
+    # Solicitações criadas por este usuário (normalmente UVIS cria)
+    solicitacoes = db.relationship(
+        "Solicitacao",
+        back_populates="usuario",
+        lazy="select"
+    )
+
+    # ✅ NOVO: vínculos de pilotos que atendem esta UVIS (para filtro do piloto)
+    vinculos_pilotos = db.relationship(
+        "PilotoUvis",
+        back_populates="uvis_usuario",
+        lazy="select",
+        cascade="all, delete-orphan"
+    )
+
+    def set_senha(self, senha):
+        self.senha_hash = generate_password_hash(senha)
+
+    def check_senha(self, senha):
+        return check_password_hash(self.senha_hash, senha)
+
+
+# -------------------------------------------------------------
+# PILOTOS (cadastro do piloto)
+# -------------------------------------------------------------
+class Pilotos(db.Model):
+    __tablename__ = "pilotos"
+
+    id = db.Column(db.Integer, primary_key=True, index=True)
+
+    nome_piloto = db.Column(db.String(100), nullable=False, index=True)
+    regiao = db.Column(db.String(20))
+    telefone = db.Column(db.String(20))
+
+    # ✅ Solicitações atribuídas ao piloto
+    solicitacoes = db.relationship(
+        "Solicitacao",
+        back_populates="piloto",
+        lazy="select"
+    )
+
+    # ✅ UVIS que este piloto atende (vínculo N:N via PilotoUvis)
+    vinculos_uvis = db.relationship(
+        "PilotoUvis",
+        back_populates="piloto",
+        lazy="select",
+        cascade="all, delete-orphan"
+    )
+
+
+# -------------------------------------------------------------
+# VÍNCULO PILOTO ↔ UVIS (N:N)
+# - serve para: "piloto ver somente as UVIS ligadas a ele"
+# - e para reforçar segurança: piloto só vê OS de UVIS que ele atende
+# -------------------------------------------------------------
+class PilotoUvis(db.Model):
+    __tablename__ = "piloto_uvis"
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    piloto_id = db.Column(
+        db.Integer,
+        db.ForeignKey("pilotos.id"),
+        nullable=False,
+        index=True
+    )
+
+    uvis_usuario_id = db.Column(
+        db.Integer,
+        db.ForeignKey("usuarios.id"),
+        nullable=False,
+        index=True
+    )
+
+    criado_em = db.Column(
+        db.DateTime,
+        default=datetime.now,
+        nullable=False,
+        index=True
+    )
+
+    piloto = db.relationship("Pilotos", back_populates="vinculos_uvis")
+    uvis_usuario = db.relationship("Usuario", back_populates="vinculos_pilotos")
+
+    __table_args__ = (
+        db.UniqueConstraint("piloto_id", "uvis_usuario_id", name="uq_piloto_uvis"),
+        db.Index("ix_piloto_uvis_piloto", "piloto_id"),
+        db.Index("ix_piloto_uvis_uvis", "uvis_usuario_id"),
+    )
+
+
+# -------------------------------------------------------------
+# SOLICITAÇÃO / ORDEM DE SERVIÇO
+# - Regras do piloto:
+#   * ver somente status "APROVADA"
+#   * ver somente solicitacoes atribuídas ao seu piloto_id
+#   * (opcional) garantir que usuario_id (UVIS) esteja vinculado ao piloto via PilotoUvis
+# -------------------------------------------------------------
+class Solicitacao(db.Model):
+    __tablename__ = 'solicitacoes'
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    # ----------------------
+    # Dados Básicos e Data
+    # ----------------------
+    data_agendamento = db.Column(db.Date, nullable=False, index=True)
+    hora_agendamento = db.Column(db.Time, nullable=False)
+
+    foco = db.Column(db.String(50), nullable=False, index=True)
+
+    # ----------------------
+    # Detalhes Operacionais
+    # ----------------------
+    tipo_visita = db.Column(db.String(50), index=True)
+    altura_voo = db.Column(db.String(20), index=True)
+
+    criadouro = db.Column(db.Boolean, default=False)
+    apoio_cet = db.Column(db.Boolean, default=False)
+
+    observacao = db.Column(db.Text)
+
+    # ----------------------
+    # Endereço
+    # ----------------------
+    cep = db.Column(db.String(9), nullable=False)
+    logradouro = db.Column(db.String(150), nullable=False)
+    bairro = db.Column(db.String(100), nullable=False, index=True)
+    cidade = db.Column(db.String(100), nullable=False, index=True)
+    uf = db.Column(db.String(2), nullable=False, index=True)
+
+    numero = db.Column(db.String(20))
+    complemento = db.Column(db.String(100))
+
+    # Geolocalização
+    latitude = db.Column(db.String(50))
+    longitude = db.Column(db.String(50))
+
+    # Anexos
+    anexo_path = db.Column(db.String(255))
+    anexo_nome = db.Column(db.String(255))
+
+    # ----------------------
+    # Controle Admin
+    # ----------------------
+    protocolo = db.Column(db.String(50), index=True)
+    justificativa = db.Column(db.String(255))
+
+    data_criacao = db.Column(
+        db.DateTime,
+        default=datetime.now,
+        index=True
+    )
+
+    # Sugestão de status: "EM ANÁLISE" -> "APROVADA" -> "CONCLUÍDA"
+    status = db.Column(
+        db.String(30),
+        default="EM ANÁLISE",
+        index=True
+    )
+
+    # UVIS (usuário) que criou/abriu a OS
+    usuario_id = db.Column(
+        db.Integer,
+        db.ForeignKey("usuarios.id"),
+        nullable=False,
+        index=True
+    )
+    usuario = db.relationship(
+        "Usuario",
+        back_populates="solicitacoes"
+    )
+
+    # Piloto responsável (para dashboard/agenda do piloto)
+    piloto_id = db.Column(
+        db.Integer,
+        db.ForeignKey("pilotos.id"),
+        nullable=True,
+        index=True
+    )
+    piloto = db.relationship(
+        "Pilotos",
+        back_populates="solicitacoes"
+    )
+
+    # 🔥 ÍNDICES COMPOSTOS (relatórios e dashboard do piloto)
+    __table_args__ = (
+        db.Index("ix_solicitacao_data_status", "data_criacao", "status"),
+        db.Index("ix_solicitacao_usuario_data", "usuario_id", "data_criacao"),
+        db.Index("ix_solicitacao_piloto_data", "piloto_id", "data_criacao"),
+        db.Index("ix_solicitacao_agenda", "data_agendamento", "hora_agendamento"),
+    )
+
+
+# -------------------------------------------------------------
+# NOTIFICAÇÕES
+# -------------------------------------------------------------
+class Notificacao(db.Model):
+    __tablename__ = "notificacoes"
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    usuario_id = db.Column(
+        db.Integer,
+        db.ForeignKey("usuarios.id"),
+        nullable=False,
+        index=True
+    )
+
+    titulo = db.Column(db.String(140), nullable=False)
+    mensagem = db.Column(db.Text)
+    link = db.Column(db.String(255))
+
+    criada_em = db.Column(
+        db.DateTime,
+        default=datetime.now,
+        nullable=False,
+        index=True
+    )
+
+    lida_em = db.Column(db.DateTime, index=True)
+    apagada_em = db.Column(db.DateTime, index=True)
+
+
+# -------------------------------------------------------------
+# CLIENTES
+# -------------------------------------------------------------
+class Clientes(db.Model):
+    __tablename__ = "clientes"
+
+    id = db.Column(db.Integer, primary_key=True, index=True)
+
+    nome_cliente = db.Column(db.String(100), nullable=False, index=True)
+
+    documento = db.Column(db.String(50), unique=True, nullable=False, index=True)
+
+    contato = db.Column(db.String(100))
+    telefone = db.Column(db.String(20))
+    email = db.Column(db.String(100), index=True)
+    endereco = db.Column(db.String(255))

@@ -1,0 +1,105 @@
+{% extends "base.html" %} 
+{% block extra_styles %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/components/buttons.css') }}">
+{% endblock %}
+{% block content %}
+<div class="container-fluid py-4" style="max-width: 1200px;">
+  
+  {# --- Cabeçalho --- #}
+  <div class="d-flex align-items-center mb-4">
+      <h2 class="text-dark m-0">
+          <i class="bi bi-pencil-square me-2 text-primary"></i> Editar UVIS
+      </h2>
+  </div>
+
+  {# --- Card Principal --- #}
+  <div class="card info status-primary shadow-sm rounded-4 border-0">
+    <div class="card-body p-4">
+      
+      <form method="POST">
+        
+        {# SEÇÃO 1: INFORMAÇÕES GERAIS #}
+        <div class="d-flex align-items-center mb-3">
+            <i class="bi bi-building-gear text-primary me-2 fs-5"></i>
+            <h5 class="m-0 text-primary fw-bold">Informações da Unidade</h5>
+        </div>
+
+        <div class="row g-3 mb-3">
+          <div class="col-md-12">
+            <label class="form-label fw-bold small text-muted">
+                <i class="bi bi-hospital me-1 text-primary"></i> Nome da UVIS *
+            </label>
+            <input name="nome_uvis" class="form-control" required value="{{ uvis.nome_uvis }}">
+          </div>
+        </div>
+
+        <div class="row g-3 mb-4">
+          <div class="col-md-6">
+            <label class="form-label fw-bold small text-muted">
+                <i class="bi bi-map me-1 text-primary"></i> Região
+            </label>
+            <input name="regiao" class="form-control" value="{{ uvis.regiao or '' }}">
+          </div>
+          
+          <div class="col-md-6">
+            <label class="form-label fw-bold small text-muted">
+                <i class="bi bi-upc-scan me-1 text-primary"></i> Código do Setor
+            </label>
+            <input name="codigo_setor" class="form-control" value="{{ uvis.codigo_setor or '' }}">
+          </div>
+        </div>
+
+        <hr class="text-muted opacity-25 my-4">
+
+        {# SEÇÃO 2: DADOS DE ACESSO #}
+        <div class="d-flex align-items-center mb-3">
+            <i class="bi bi-shield-lock text-primary me-2 fs-5"></i>
+            <h5 class="m-0 text-primary fw-bold">Dados de Acesso</h5>
+        </div>
+
+        <div class="row g-3 mb-3">
+          <div class="col-md-12">
+            <label class="form-label fw-bold small text-muted">
+                <i class="bi bi-person-badge me-1 text-primary"></i> Login *
+            </label>
+            <input name="login" class="form-control" required value="{{ uvis.login }}">
+          </div>
+        </div>
+
+        <div class="row g-3 mb-2">
+          <div class="col-md-6">
+            <label class="form-label fw-bold small text-muted">
+                <i class="bi bi-key me-1 text-primary"></i> Nova Senha (opcional)
+            </label>
+            <input name="senha" type="password" class="form-control">
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label fw-bold small text-muted">
+                <i class="bi bi-check-circle me-1 text-primary"></i> Confirmar Nova Senha
+            </label>
+            <input name="confirmar" type="password" class="form-control">
+          </div>
+        </div>
+        
+        <div class="mb-4">
+           <small class="text-muted fst-italic">
+             <i class="bi bi-info-circle me-1"></i> Se deixar os campos de senha vazios, a senha atual permanece inalterada.
+           </small>
+        </div>
+
+        {# BOTÕES DE AÇÃO #}
+        <div class="d-flex justify-content-end gap-2 mt-5">
+          <a href="{{ url_for('main.admin_uvis_listar') }}" class="btn btn-outline-danger px-4">
+              <i class="bi bi-x-lg me-1"></i> Cancelar
+          </a>
+          <button type="submit" class="btn btn-primary px-5 shadow-sm fw-bold">
+            <i class="bi bi-check-lg me-1"></i> Salvar Alterações
+          </button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

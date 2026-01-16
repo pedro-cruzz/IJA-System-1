@@ -1,0 +1,1 @@
+web: python run.py && gunicorn "app:create_app()"
