@@ -1,0 +1,17 @@
+{
+    "sqltools.connections": [
+        {
+            "pgOptions": {
+                "ssl": {
+                    "rejectUnauthorized": true
+                }
+            },
+            "ssh": "Disabled",
+            "previewLimit": 50,
+            "server": "localhost",
+            "driver": "PostgreSQL",
+            "name": "ija-db",
+            "connectString": "postgresql://ija_system_db_user:tvO1kuL7Zz3SmvIU8Y21qSflQqwPnI00@dpg-d52oc36mcj7s73bt1c5g-a.ohio-postgres.render.com/ija_system_db"
+        }
+    ]
+}
